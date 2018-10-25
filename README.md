@@ -1,5 +1,5 @@
 
-# lib.parts
+# lib-apply
 
 Die Bibliothek enthält einige Codebeispiele aus meinen Projekten. Hier sind nicht die gesamten Projekte zu sehen, sondern nur einige beispielhafte Ausschnitte, die Bewerbungszwecken dienen. 
 
