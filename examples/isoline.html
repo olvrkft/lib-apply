@@ -1,0 +1,260 @@
+  <!doctype html>
+  <html>
+   <head>
+     <meta charset="utf-8">
+     <title>Isoline demo</title>
+     <script src="./js/jquery.min.js"></script>
+     <script src="./js/bootstrap.bundle.min.js"></script>
+     <script src="./isoline.bundle.js"></script>
+     <link rel="stylesheet" href="./css/bootstrap.min.css"/>
+     <script type="text/javascript">
+     /*** Thanks to https://codepen.io/gapcode/pen/vEJNZN ***/
+     var detectedID = (function() {
+       let result  = -1
+	       , rv      = null
+	       , ua      = window.navigator.userAgent
+         , msie    = ua.indexOf('MSIE ')
+         , trident = ua.indexOf('Trident/')
+         , edge    = ua.indexOf('Edge/');
+
+       if (msie > 0) {
+         // IE 10 or older => return version number
+         result = parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+       }
+
+       if (trident > 0) {
+         // IE 11 => return version number
+         rv = ua.indexOf('rv:');
+         result = parseInt(ua.substring(rv + 3, ua.indexOf('.', rv)), 10);
+       }
+
+       /*if (edge > 0) {
+         // Edge (IE 12+) => return version number
+         result = parseInt(ua.substring(edge + 5, ua.indexOf('.', edge)), 10);
+       }*/
+
+       // other browser
+       return result;
+     })();
+     </script>
+   </head>
+   <body style="margin: 1em; background: white;">
+     <div class="jumbotron">
+       <h1>Automatische Berechnung von Isohypsen aus einem Bild</h1>
+       <p class="lead"><a href="https://de.wikipedia.org/wiki/H%C3%B6henlinie">Isohypsen</a> beschreiben in der Geographie Höhenlinien.
+          In der digitalen Datenverarbeitung werden Höhenprofile in Bildern aus Graustufen gespeichert, bei denen der numerische Wert eines
+          Pixels die Information über die Höhe im Bild enthält.</p>
+       <p class="lead">Im folgenden Beispiel wird ein <i>Contour-Tracing</i>-Algorithmus von Seo et al. (2016) verwendet, um aus einem Bild die Höhenlinien zu berechnen.</p>
+       <hr class="my-4">
+       <h2>Anwendungsbeispiel</h2>
+
+       <!-- IE-Alert -->
+       <div class="alert alert-danger alert-ie" role="alert" style="display: none;">
+         <h5>Entschuldigen Sie die Unannehmlichkeiten!</h5>
+         <hr/>
+         <p>Der Code wurde für den Betrieb im <a href="https://nodejs.org/">node.js-</a> und
+           <a href="https://electronjs.org/">Electron</a>-Framework entwickelt und die
+            Beispiele wurden unter massiver Verwendung von <a href="https://getbootstrap.com/">bootstrap</a>,
+            <a href="https://webpack.js.org/">webpack</a> und HTML5-Technologien für moderne Webbrowser entworfen.</p>
+         <p>Leider ist der IE nicht in der Lage, die Beispiele korrekt darzustellen,
+           weshalb ich die Nutzung von <a href="https://www.mozilla.org/de/firefox/new/">Firefox</a>,
+           <a href="https://www.google.com/intl/de_ALL/chrome/">Chrome</a> oder Edge zur Ansicht empfehle.</p>
+       </div>
+
+       <div class="card">
+         <div class="card-body row">
+           <div class="col-sm">
+             <p>Stellen Sie im Kontrollfeld unten einen Schwellwert ein.
+               Danach wird aus dem Höhenprofil aus Abb. 1 eine Höhenlinie für den
+               entsprechenden Wert berechnet und in Abb. 2 dargestellt.</p>
+             <div class="input-group mb-2">
+               <div class="input-group-prepend">
+                 <label class="input-group-text" for="threshold1" style="background: white;">Schwellwert (0-255):</label>
+               </div>
+               <input id="threshold1" data-example="1" type="number" value="128" step="1" min="0" max="255" title="Schwellwert"/>
+             </div>
+           </div>
+           <div class="col-sm">
+             <figure class="figure" style="width:200px;">
+               <img id="image1" class="card-img-top" data-example="1" title="Abb. 1: Beispielbild." style="width: 200px; height: 200px;"/>
+               <figcaption class="figure-caption">Abb. 1: Höhenprofil</figcaption>
+             </figure>
+           </div>
+           <div class="col-sm">
+             <figure class="figure" style="width:200px;">
+               <canvas id="canvas1" width="200px" height="200px" style="border: 1px solid black; background: white;" title="Mit Schwellwert berechnete Kontur."></canvas>
+               <figcaption class="figure-caption">Abb. 2: Höhenlinie für den ausgewählten Schwellwert.</figcaption>
+             </figure>
+           </div>
+         </div>
+      </div>
+       <hr class="my-4">
+       <div>
+         <h2>Implementierung</h2>
+         <div class="card">
+           <div class="card-body">
+             <h3 class="card-title">Isoline <code style="font-size: smaller;">(lib/Isoline.js)</code></h3>
+             <p class="card-text">Isoline erstellt aus einer Heightmap mittels eines variablen Schwellwerts
+               den Pfad der entsprechenden Höhenlinie (Isohypse).</p>
+             <p>Die eigentliche Arbeit findet in der privaten Funktion <code>thresholdRegion</code> statt,
+               die ein ImageMatrix-Objekt erhält und mittels des Schwellwerts entscheidet, ob ein Pixel schwarz
+               oder weiß gefärbt wird:</p>
+             <pre><code>
+               let thresholdRegion = function(image, threshold)
+               {
+                 let x, y;
+                 let black = 0x000000FF, white = 0xFFFFFFFF;
+                 let I = image;
+                 let t = ( (threshold * (1 << 24)) + // R
+                           (threshold << 16) +       // G
+                           (threshold <<  8) +       // B
+                           0xFF );                   // A
+
+                 for (y = 0; y < I.height - 1; ++y) {
+                   for (x = 0; x < I.width - 1; ++x)
+                   {
+                     if (I.get(x, y) > t) {
+                       I.set(x, y, white);
+                     } else {
+                       I.set(x, y, black);
+                     }
+                   }
+                 }
+
+                 return image;
+               }
+             </code></pre>
+           </div>
+         </div>
+         <br/>
+         <div class="card">
+           <div class="card-body">
+             <h3 class="card-title">ImageMatrix <code style="font-size: smaller;">(lib/ImageMatrix.js)</code></h3>
+             <p class="card-text">ImageMatrix ist ein Wrapper um ein ImageData-Objekt, das einen intuitiveren Zugang zu den Bilddaten erlaubt.
+                In einem ImageData-Objekt werden die vier Farbwerte (RGBA) in vier einzelnen Feldern in einem Array gespeichert.
+             </p>
+           </div>
+         </div>
+         <br/>
+         <div class="card">
+           <div class="card-body">
+             <h3 class="card-title">FastContourTracer <code style="font-size: smaller;">(lib/FastContourTracer.js)</code></h3>
+             <p class="card-text">FastContourTracer ist eine Implementierung des Algorithmus aus dem Paper
+               "Fast Contour-Tracing Algorithm Based on a Pixel-Following Method for Image Sensors" (Seo et al., 2016).
+               Der Algorithmus zur Pfaderstellung umfasst zwei Schritte, die insgesamt acht Fälle unterscheiden und ist
+               in der Methode <code>createPath</code> implementiert.
+             </p>
+             <pre><code>
+               createPath(start)
+               {
+                 let result = {'path': null, 'closed': true}
+                   , path   = [];
+
+                 // Reset i and end condition.
+                 this.i    = 0;
+                 this.idle = 0;
+                 this.end  = END_NOT;
+
+                 // Set current position to starting position.
+                 this.position.x = start.x;
+                 this.position.y = start.y;
+
+                 do
+                 {
+                   // Stage 1
+                   if (this.leftRearValue === this.tracingColor) {
+                     if (this.leftValue === this.tracingColor) {
+                       // Case 1
+                       // T(P,d) <- T(P_left, d_left) and code(i) <- "inner"
+                       // T(P,d) <- T(P_left, d_left)
+                       //console.log('(C1) inner');
+                       this.update(LEFT, this.leftDirection, path);
+                       this.update(LEFT, this.leftDirection, path);
+                     } else {
+                       // Case 2
+                       // code(i) <- "inner-outer"
+                       // T(P,d) <- T(P_left-rear, d_rear) and Code(i) <- "inner-outer"
+                       //console.log('(C2) inner-outer', this.d);
+                       this.update(LEFTREAR , this.rearDirection, path);
+                     }
+                   }
+                   else {
+                     if (this.leftValue === this.tracingColor) {
+                       // Case 3
+                       // T(P,d) <- T(P_left, d_left) and code(i) <- "straight"
+                       //console.log('(C3) straight');
+                       this.update(LEFT, this.leftDirection, path);
+                     } else {
+                       // Case 4
+                       // code(i) <- "outer"
+                       //console.log('(C4) outer');
+                       this.idle += 1;
+                     }
+                   }
+
+                   // Stage 2
+                   if (this.frontLeftValue === this.tracingColor) {
+                     if (this.frontValue === this.tracingColor) {
+                       // Case 6
+                       // T(P,d) <- T(P_front, d_left) and code(i) <- "inner"
+                       // T(P,d) <- T(P_front, d_right)
+                       //console.log('(C6) inner');
+                       this.update(FRONT, this.leftDirection, path);
+                       this.update(FRONT, this.rightDirection, path);
+                     } else {
+                       // Case 5
+                       // T(P,d) <- T(P_front-left, d) and code(i) <- "inner-outer"
+                       //console.log('(C5) inner-outer');
+                       this.update(FRONTLEFT, this.d, path);
+                     }
+                   }
+                   else if (this.frontValue === this.tracingColor) {
+                     // Case 7
+                     // T(P,d) <- T(P_front, d_right)
+                     //console.log('(C7) no code');
+                     this.update(FRONT, this.rightDirection, path);
+                   }
+                   else {
+                     // Case 8
+                     // T(P,d) <- T(P,d_rear) and i <- i - 1 and code(i) <- "outer"
+                     //console.log('(C8) outer :', this.d);
+                     this.update(SAME, this.rearDirection);
+                   }
+                 }
+                 while ( !(this.end = this.doStop(start)) );
+
+                 // Add last postion to the path, if end condition is idle ending.
+                 if (END_IDLE === this.end)
+                 {
+                   result.closed = false;
+
+                   path.push(this.position.x);
+                   path.push(this.position.y);
+
+                   // Set the starting position to traced to avoid endless iterations.
+                   this.imageMatrix.set(start.x, start.y, TRACED);
+                 }
+
+                 if (path.length < 3) {
+                   this.imageMatrix.set(this.position.x, this.position.y, 0xCC00CCFF);
+                 }
+
+                 result.path = path;
+
+                 return result;
+               }
+             </code></pre>
+           </div>
+         </div>
+       </div>
+       <hr class="my-4">
+       <h2 class="display-6">Literatur</h2>
+       <div class="lead">
+         <ul class="list-group list-group-flush">
+           <li class="list-group-item">Birdal, T., & Bala, E. (2014). A Novel Method for Vectorization. arXiv preprint arXiv:1403.0728.</li>
+           <li class="list-group-item">Seo, J., Chae, S., Shim, J., Kim, D., Cheong, C., & Han, T. D. (2016). Fast contour-tracing algorithm based on a pixel-following method for image sensors. Sensors, 16(3), 353.</li>
+         </ul>
+       </div>
+    </div>
+   </body>
+  </html>

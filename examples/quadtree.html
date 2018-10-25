@@ -1,0 +1,190 @@
+  <!doctype html>
+  <html>
+   <head>
+     <meta charset="utf-8">
+     <title>Neighbours demo</title>
+     <script src="./js/jquery.min.js"></script>
+     <script src="./js/bootstrap.bundle.min.js"></script>
+     <script src="./quadtree.bundle.js"></script>
+     <link rel="stylesheet" href="./css/bootstrap.min.css"/>
+     <script type="text/javascript">
+     /*** Thanks to https://codepen.io/gapcode/pen/vEJNZN ***/
+     var detectedID = (function() {
+       let result  = -1
+	       , rv      = null
+	       , ua      = window.navigator.userAgent
+         , msie    = ua.indexOf('MSIE ')
+         , trident = ua.indexOf('Trident/')
+         , edge    = ua.indexOf('Edge/');
+
+       if (msie > 0) {
+         // IE 10 or older => return version number
+         result = parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+       }
+
+       if (trident > 0) {
+         // IE 11 => return version number
+         rv = ua.indexOf('rv:');
+         result = parseInt(ua.substring(rv + 3, ua.indexOf('.', rv)), 10);
+       }
+
+       /*if (edge > 0) {
+         // Edge (IE 12+) => return version number
+         result = parseInt(ua.substring(edge + 5, ua.indexOf('.', edge)), 10);
+       }*/
+
+       // other browser
+       return result;
+     })();
+     </script>
+   </head>
+   <body style="margin: 1em; background: white;">
+     <div class="jumbotron">
+       <h1>QuadTree zur räumlichen Indizierung</h1>
+       <p class="lead">Ein <a href="https://de.wikipedia.org/wiki/Quadtree">Quaternärbaum</a> ist eine Datenstruktur,
+          mit der ein zweidimensionaler Raum indiziert werden kann. Eine spannende Aufgabe ist das Finden von <i>Nachbarknoten</i>
+          im Baum, da die numerische Benennung der Knoten keine triviale Lösung zulässt. Schrack (1992) hat eine
+          Lösung mit der Laufzeit <strong>O(1)</strong> für QuadTrees mit gleicher Regionengröße vorgestellt.
+       </p>
+       <p class="lead">Aizawa & Tanaka (2009) stellen eine Verfeinerung vor, die QuadTrees mit unterschiedlich großen    Regionen indizieren kann. Diese ist hier aber (noch) nicht implementiert.</p>
+       <hr class="my-4">
+       <h2>Anwendungsbeispiel</h2>
+
+       <!-- IE-Alert -->
+       <div class="alert alert-danger alert-ie" role="alert" style="display: none;">
+         <h5>Entschuldigen Sie die Unannehmlichkeiten!</h5>
+         <hr/>
+         <p>Der Code wurde für den Betrieb im <a href="https://nodejs.org/">node.js-</a> und
+           <a href="https://electronjs.org/">Electron</a>-Framework entwickelt und die
+            Beispiele wurden unter massiver Verwendung von <a href="https://getbootstrap.com/">bootstrap</a>,
+            <a href="https://webpack.js.org/">webpack</a> und HTML5-Technologien für moderne Webbrowser entworfen.</p>
+         <p>Leider ist der IE nicht in der Lage, die Beispiele korrekt darzustellen,
+           weshalb ich die Nutzung von <a href="https://www.mozilla.org/de/firefox/new/">Firefox</a>, 
+           <a href="https://www.google.com/intl/de_ALL/chrome/">Chrome</a> oder Edge zur Ansicht empfehle.</p>
+       </div>
+
+       <p>Bitte klicken Sie in Abb. 2 in eine der Regionen, um die Koordinaten der Nachbarregionen angezeigt zu bekommen.
+         Das Beispiel zeigt eine mögliche Anwendung für eine Level of Detail (LoD) Strategie.</p>
+       <div class="row">
+         <div class="col-sm-6">
+           <div class="card">
+             <div class="card-body">
+               <figure>
+                 <img id="heightmap" title="Abb. 1: Heightmap"/>
+                 <figcaption>Abb. 1: Eine Heightmap von England.</figcaption>
+               </figure>
+             </div>
+           </div>
+         </div>
+         <div class="col-sm-6">
+           <div class="card">
+             <div class="card-body">
+               <figure>
+                 <canvas id="canvas" title="Abb. 2: Indizierte Heightmap. Koordinaten der Blätter des QuadTrees sind rot dargestellt."></canvas>
+                 <figcaption>Abb. 2: Indizierte Heightmap. Koordinaten der Blätter des QuadTrees sind rot dargestellt.</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="my-4">
+      <div>
+        <h2>Implementierung</h2>
+        <div class="card">
+          <div class="card-body">
+            <h3 class="card-title">QDilate <code style="font-size: smaller;">(lib/QDilate.js)</code></h3>
+            <p>Integer dilation ist eine Methode, bei der vor jedem Bit einer Zahl eine Null eingefügt wird.
+              So "weitet" sich die Repräsentation der Zahl und bietet Platz, um weitere Zahlen in der gleichen Datenstruktur
+              zu "beherbergen" und mit beiden zu rechnen.</p>
+            <p>QDilate kann Integer bis 25 Bit in einer Zahl speichern.
+              Die Klasse bietet Operationen wie <code>encode</code>, <code>expand</code>, <code>contract</code>,
+              <code>add</code>, <code>sub</code>, ... an, um Koordinaten von Nachbarn im QuadTree in <strong>O(1)</strong> zu berechnen.</p>
+            <p>Die <code>expand</code>-Methode konvertiert die Zahl k erst in die String-Repräsentation, bevor die "geweitete" Zahl berechnet wird:
+            </p>
+          </div>
+          <pre><code>
+            expand(k)
+            {
+              let kb
+                , end
+                , i
+                , m
+                , exp = new Number(0);
+
+                // convert number into its binary representation
+                kb = (k >>> 0).toString(2);
+
+                // set loop for negative and positive numbers
+                if (k < 0) {
+                  end = kb.length - this.R;
+                } else {
+                  end = 0;
+                }
+
+                // expand k; from right to left
+                for (i = kb.length - 1, m = 0; i >= end; i -= 1, m += 2) {
+                  exp += Math.pow(2, m) * parseInt(kb[i], 10);
+                }
+
+                if (k < 0) {
+                  exp = exp + this.FLAG_NEGATIVE;
+                }
+
+                return exp;
+            }
+          </code></pre>
+        </div>
+        <br/>
+
+        <div class="card">
+          <div class="card-body">
+            <h3 class="card-title">QuadTree <code style="font-size: smaller;">(lib/QuadTree.js)</code> und RegionQuadTree <code>(lib/RegionQuadTree.js)</code></h3>
+            <p>QuadTree und RegionQuadTree sind Implementierungen der entsprechenden Datenstrukturen.</p>
+          </div>
+        </div>
+        <br/>
+
+        <div class="card">
+          <div class="card-body">
+            <h3 class="card-title">QTLoDStrategy <code style="font-size: smaller;">(lib/QTLoDStrategy.js)</code></h3>
+            <p>QTLoDStrategy implementiert eine LoD-Strategie (Level of Detail) und nutzt einen RegionQuadTree, 
+              der das Bild indiziert. Die Suche nach Blättern erfolgt normalerweise in <strong>O(log n)</strong>.
+              Die QTLoDStrategy greift zur Suche von Nachbarknoten auf QDilate zurück.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <hr class="my-4">
+      <h2 class="display-6">Literatur</h2>
+      <div class="lead">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item">Schrack, G. (1992). Finding neighbors of equal size in linear quadtrees and octrees in constant time. DOI: 10.1016/1049-9660(92)90022-U.</li>
+          <li class="list-group-item">Aizawa, K., Motomura, K., Kimura, S., Kadowaki, R., & Fan, J. (2008, March). Constant time neighbor finding in quadtrees: An experimental result.
+            In Communications, Control and Signal Processing, 2008. ISCCSP 2008. 3rd International Symposium on (pp. 505-510). IEEE.</li>
+          <li class="list-group-item">Aizawa, K., & Tanaka, S. (2009). A constant-time algorithm for finding neighbors in quadtrees.
+            IEEE transactions on pattern analysis and machine intelligence, 31(7), 1178-1183.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="message-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title">Koordinaten der Nachbarknoten</h4>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          </div>
+          <div class="modal-body">...</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+   </body>
+  </html>
