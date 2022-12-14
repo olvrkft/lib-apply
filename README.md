@@ -11,11 +11,11 @@ In `/lib`  sind die implementierten Klassen und Algorithmen, die grundsätzlich 
 
 # Die Beispiele
 
-Im Moment sind hier zwei Beispiele zu finden. Im Folgenden wird nur kurz der zentrale Punkt eines jeden Projekts dargestellt. Etwas mehr Informationen und ein dynamisches Beispiel befindet sich im `/example`-Ordner, nicht zuletzt steht natürlich der eigentliche Quellcode in `/lib` zur Verfügung.
+Im Moment sind hier zwei Beispiele zu finden. Im Folgenden wird nur kurz der zentrale Punkt eines jeden Projekts dargestellt. Etwas mehr Informationen und ein dynamisches Beispiel befindet sich im `/example`-Ordner, nicht zuletzt steht der eigentliche Quellcode in `/lib` zur Verfügung.
 
 ## QuadTree
 
-Der Trick im QuadTree ist die Verwendung von Integer Dilation (Schrack 1992). Dabei wird in der Binärdarstellung einer Zahl vor jedem Bit eine Null eingefügt, so dass es möglich ist in die leeren Stellen eine zweite "geweitete" Zahl zu schreiben. Mit einer logischen Formel kann und relativen Positionsangaben (bspw. (0,0) für eine Position selber oder (0,1) für den südlichen Nachbarn) kann die jeweilige 8-Feld-Nachbarschaft berechnet werden.
+Der Trick im QuadTree ist die Verwendung von Integer Dilation (Schrack 1992). Dabei wird in der Binärdarstellung einer Zahl vor jedem Bit eine Null eingefügt, so dass es möglich ist in die leeren Stellen des "geweitete" Integer eine zweite Zahl zu schreiben. Mit einer logischen Formel und relativen Positionsangaben (bspw. (0,0) für eine Position selber oder (0,1) für den südlichen Nachbarn) kann die jeweilige 8-Feld-Nachbarschaft (Moore-Nachbarschaft) berechnet werden.
 
 Die Funktion mit der Formel ist in `/lib/QDilate.js` zu finden:
 ```javascript
