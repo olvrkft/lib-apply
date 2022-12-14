@@ -146,3 +146,5 @@ Natürlich habe ich die Algorithmen nicht alle selber entwickelt.  Hier ist noch
 + Aizawa, K., Motomura, K., Kimura, S., Kadowaki, R., & Fan, J. (2008, March). Constant time neighbor finding in quadtrees: An experimental result. In Communications, Control and Signal Processing, 2008. ISCCSP 2008. 3rd International Symposium on (pp. 505-510). IEEE.
 + Aizawa, K., & Tanaka, S. (2009). A constant-time algorithm for finding neighbors in quadtrees. IEEE transactions on pattern analysis and machine intelligence, 31(7), 1178-1183.
 
+## Build project
+Das Projekt lässt sich über den Befehlt `npx webpack` bauen. In der Datei `webpack.config.js` ist die Konfiguration für webpack zu finden. Über die beiden Entry-Points in `src/` werden die beiden Bundles in `example/` erstellt und sind dann über `isoline.html` und `quadtree.html` in einem Browser ausführbar.
